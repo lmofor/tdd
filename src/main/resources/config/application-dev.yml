@@ -1,1 +1,9 @@
 
+
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+server:
+  port: 8080
