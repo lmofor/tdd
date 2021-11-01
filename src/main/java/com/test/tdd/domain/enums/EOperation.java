@@ -6,8 +6,4 @@ public enum EOperation {
     EOperation() {
     }
 
-    @Override
-    public String toString() {
-        return "EOperation{}";
-    }
 }

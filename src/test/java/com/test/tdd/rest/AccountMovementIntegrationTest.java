@@ -1,6 +1,5 @@
 package com.test.tdd.rest;
 
-import com.jayway.jsonpath.JsonPath;
 import com.test.tdd.TddApplication;
 import com.test.tdd.domain.AccountMovement;
 import com.test.tdd.domain.AccountStatement;
@@ -18,11 +17,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -33,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(classes = TddApplication.class)
 @AutoConfigureMockMvc
-public class AccountMovementIntegrationTest {
+class AccountMovementIntegrationTest {
 
     private final AccountStatement ACCOUNT = new AccountStatement(12345L, "12345", new BigDecimal(3000), "Etienne Dupon");;
 
@@ -63,7 +59,7 @@ public class AccountMovementIntegrationTest {
     }
 
     @Test //Test saving money
-    public void givenAnAccountWhenMakeDepositBalanceShouldIncreaseOfAddedAmount() throws Exception {
+    void givenAnAccountWhenMakeDepositBalanceShouldIncreaseOfAddedAmount() throws Exception {
 
         BigDecimal balanceBefore = accountStatementService.findByAccountNumber(ACCOUNT.getAccountNumber()).get().getBalance();
         BigDecimal amount = new BigDecimal(152);
@@ -91,7 +87,7 @@ public class AccountMovementIntegrationTest {
     }
 
     @Test //Test retrieve money
-    public void givenAnAccountWhenMakeWithdrawalBalanceShouldDecreaseOfRemovedAmount() throws Exception {
+    void givenAnAccountWhenMakeWithdrawalBalanceShouldDecreaseOfRemovedAmount() throws Exception {
         BigDecimal balanceBefore = accountStatementService.findByAccountNumber(ACCOUNT.getAccountNumber()).get().getBalance();
         BigDecimal amount = new BigDecimal(152);
         MovementDTO movement = new MovementDTO(ACCOUNT.getAccountNumber(), amount);
@@ -119,12 +115,11 @@ public class AccountMovementIntegrationTest {
     }
 
     @Test //Test retrieve money in account without enough cash
-    public void givenAnAccountWhenMakeWithdrawalWithoutEnoughAmountInBalanceSystemExceptionShouldBeRaised() throws Exception {
+    void givenAnAccountWhenMakeWithdrawalWithoutEnoughAmountInBalanceSystemExceptionShouldBeRaised() throws Exception {
 
-        BigDecimal balanceBefore = accountStatementService.findByAccountNumber(ACCOUNT.getAccountNumber()).get().getBalance();
+        BigDecimal balance = accountStatementService.findByAccountNumber(ACCOUNT.getAccountNumber()).get().getBalance();
         BigDecimal amount = new BigDecimal(5000);
         MovementDTO movement = new MovementDTO(ACCOUNT.getAccountNumber(), amount);
-        BigDecimal balanceAfter = balanceBefore;
         int sizeAccountStatementAfter = accountStatementRepository.findAll().size();
         int sizeAccountMovementAfter = accountMovementRepository.findAll().size();
 
@@ -137,19 +132,19 @@ public class AccountMovementIntegrationTest {
         assertThat(sizeAccountMovementAfter).isEqualTo(accountMovementRepository.findAll().size());
         assertThat(sizeAccountStatementAfter).isEqualTo(accountStatementRepository.findAll().size());
 
-        assertThat(balanceAfter).isEqualTo(accountStatementService.findByAccountNumber(ACCOUNT.getAccountNumber()).get().getBalance());
+        assertThat(balance).isEqualTo(accountStatementService.findByAccountNumber(ACCOUNT.getAccountNumber()).get().getBalance());
 
 
         //fail("Not yet implemented");
     }
 
     @Test //Test history
-    public void givenAnAccountWhenPrintingAfterMakingWithdrawalAndDepositHistoryShouldListAllTransactions() throws Exception {
+    void givenAnAccountWhenPrintingAfterMakingWithdrawalAndDepositHistoryShouldListAllTransactions() throws Exception {
 
-        int size1 = (accountMovementRepository.findAll()
+        long size1 = accountMovementRepository.findAll()
                 .stream()
                 .filter(accountMovement -> accountMovement.getAccountNumber().equals(ACCOUNT.getAccountNumber()))
-                .collect(Collectors.toList())).size();
+                .count();
         // movement 1
 
         BigDecimal amount1 = new BigDecimal(152);
@@ -161,15 +156,13 @@ public class AccountMovementIntegrationTest {
         MovementDTO movement2 = new MovementDTO(ACCOUNT.getAccountNumber(), amount2);
         AccountMovement accountMovement2 = accountMovementService.makeWithdrawal(movement2);
 
-        MvcResult result =restMockMvc.perform(get("/api/accounthistory/12345")
+        restMockMvc.perform(get("/api/accounthistory/12345")
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
-                .andExpect(jsonPath("$", hasSize(size1 + 2)))
-                .andReturn();
-        List<AccountMovement> list = JsonPath.read(result.getResponse().getContentAsString(), "$");
-        assertThat(list.contains(accountMovement1));
-        assertThat(list.contains(accountMovement2));
+                .andExpect(jsonPath("$", hasSize((int) (size1 + 2))));
+        assertThat(accountMovementRepository.findAll().contains(accountMovement1)).isTrue();
+        assertThat(accountMovementRepository.findAll().contains(accountMovement2)).isTrue();
         //fail("Not yet implemented");
     }
 

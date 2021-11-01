@@ -3,7 +3,6 @@ package com.test.tdd.rest;
 import com.test.tdd.domain.AccountMovement;
 import com.test.tdd.exception.BadBalanceException;
 import com.test.tdd.service.AccountMovementService;
-import com.test.tdd.service.AccountStatementService;
 import com.test.tdd.service.dto.MovementDTO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
