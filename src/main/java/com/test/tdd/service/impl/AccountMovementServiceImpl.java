@@ -43,7 +43,7 @@ public class AccountMovementServiceImpl implements AccountMovementService {
                 accountMovement.setOperation(EOperation.DEPOSIT);
                 accountMovement.setNewBalance(newBalance);
                 accountMovement.setDate(Instant.now());
-                accountMovement.setId(accountMovementRepository.findAll().stream().mapToLong(value -> value.getId()).max().getAsLong()+1);
+                accountMovement.setId(accountMovementRepository.findAll().stream().mapToLong(AccountMovement::getId).max().orElse(0)+1);
                 accountMovementRepository.addAccountMovement(accountMovement);
                 return accountMovement;
         }
@@ -69,7 +69,7 @@ public class AccountMovementServiceImpl implements AccountMovementService {
                 accountMovement.setOperation(EOperation.WITHDRAWAL);
                 accountMovement.setNewBalance(newBalance);
                 accountMovement.setDate(Instant.now());
-                accountMovement.setId(accountMovementRepository.findAll().stream().mapToLong(value -> value.getId()).max().getAsLong()+1);
+                accountMovement.setId(accountMovementRepository.findAll().stream().mapToLong(AccountMovement::getId).max().orElse(0)+1);
                 accountMovementRepository.addAccountMovement(accountMovement);
                 return accountMovement;
             }
@@ -78,7 +78,7 @@ public class AccountMovementServiceImpl implements AccountMovementService {
     }
 
     @Override
-    public List<AccountMovement> showHistory(Instant beginDate, Instant endDate, String accountNumber) {
-        return accountMovementRepository.findAllByAccountBetweenPeriod(beginDate, endDate, accountNumber);
+    public List<AccountMovement> showHistory(String accountNumber) {
+        return accountMovementRepository.findAllMovementsByAccount(accountNumber);
     }
 }

@@ -39,11 +39,10 @@ public class AccountMovementRepository {
         return accountMovementList;
     }
 
-    public List<AccountMovement> findAllByAccountBetweenPeriod(Instant beginDate, Instant endDate, String accountNumber) {
+
+    public List<AccountMovement> findAllMovementsByAccount(String accountNumber) {
         return accountMovementList.stream()
-                .filter(accountMovement -> accountMovement.getAccountNumber().equals(accountNumber)
-                && accountMovement.getDate().isAfter(beginDate) && accountMovement.getDate().isBefore(endDate)
-                )
+                .filter(accountMovement -> accountMovement.getAccountNumber().equals(accountNumber))
                 .collect(Collectors.toList());
     }
 

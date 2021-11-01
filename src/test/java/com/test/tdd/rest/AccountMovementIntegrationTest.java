@@ -1,44 +1,47 @@
 package com.test.tdd.rest;
 
+import com.jayway.jsonpath.JsonPath;
 import com.test.tdd.TddApplication;
-import com.test.tdd.domain.AccountStatement;
 import com.test.tdd.domain.AccountMovement;
-import com.test.tdd.domain.enums.EOperation;
+import com.test.tdd.domain.AccountStatement;
 import com.test.tdd.exception.BadBalanceException;
 import com.test.tdd.repository.AccountMovementRepository;
 import com.test.tdd.repository.AccountStatementRepository;
 import com.test.tdd.service.AccountMovementService;
 import com.test.tdd.service.AccountStatementService;
 import com.test.tdd.service.dto.MovementDTO;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
-import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(classes = TddApplication.class)
 @AutoConfigureMockMvc
 public class AccountMovementIntegrationTest {
 
-    private AccountStatement ACCOUNT = new AccountStatement(12345L, "12345", new BigDecimal(3000), "Etienne Dupon");;
+    private final AccountStatement ACCOUNT = new AccountStatement(12345L, "12345", new BigDecimal(3000), "Etienne Dupon");;
 
     @Autowired
-    private AccountStatementRepository accountStatementRepository;
+    private final AccountStatementRepository accountStatementRepository = new AccountStatementRepository();
 
     @Autowired
-    private AccountMovementRepository accountMovementRepository;
+    private final AccountMovementRepository accountMovementRepository = new AccountMovementRepository();
 
     @Autowired
     private AccountStatementService accountStatementService;
@@ -49,13 +52,19 @@ public class AccountMovementIntegrationTest {
     @Autowired
     private MockMvc restMockMvc;
 
-    @BeforeAll
-    public static void beforeAll() {
+    @BeforeEach
+    public void beforeEach() {
+        accountStatementRepository.addAccountStatement(ACCOUNT);
+    }
+
+    @AfterEach
+    public void afterEach() {
+        accountStatementRepository.removeAccountStatement(ACCOUNT);
     }
 
     @Test //Test saving money
-    public void GivenAnAccountWhenMakeDepositBalanceShouldIncreaseOfAddedAmount() throws Exception {
-        accountStatementRepository.addAccountStatement(ACCOUNT);
+    public void givenAnAccountWhenMakeDepositBalanceShouldIncreaseOfAddedAmount() throws Exception {
+
         BigDecimal balanceBefore = accountStatementService.findByAccountNumber(ACCOUNT.getAccountNumber()).get().getBalance();
         BigDecimal amount = new BigDecimal(152);
         MovementDTO movement = new MovementDTO(ACCOUNT.getAccountNumber(), amount);
@@ -82,8 +91,7 @@ public class AccountMovementIntegrationTest {
     }
 
     @Test //Test retrieve money
-    public void GivenAnAccountWhenMakeWithdrawalBalanceShouldDecreaseOfRemovedAmount() throws Exception {
-        accountStatementRepository.addAccountStatement(ACCOUNT);
+    public void givenAnAccountWhenMakeWithdrawalBalanceShouldDecreaseOfRemovedAmount() throws Exception {
         BigDecimal balanceBefore = accountStatementService.findByAccountNumber(ACCOUNT.getAccountNumber()).get().getBalance();
         BigDecimal amount = new BigDecimal(152);
         MovementDTO movement = new MovementDTO(ACCOUNT.getAccountNumber(), amount);
@@ -111,9 +119,8 @@ public class AccountMovementIntegrationTest {
     }
 
     @Test //Test retrieve money in account without enough cash
-    public void GivenAnAccountWhenMakeWithdrawalWithoutEnoughAmountInBalanceSystemExceptionShouldBeRaised() throws Exception {
+    public void givenAnAccountWhenMakeWithdrawalWithoutEnoughAmountInBalanceSystemExceptionShouldBeRaised() throws Exception {
 
-        accountStatementRepository.addAccountStatement(ACCOUNT);
         BigDecimal balanceBefore = accountStatementService.findByAccountNumber(ACCOUNT.getAccountNumber()).get().getBalance();
         BigDecimal amount = new BigDecimal(5000);
         MovementDTO movement = new MovementDTO(ACCOUNT.getAccountNumber(), amount);
@@ -137,8 +144,33 @@ public class AccountMovementIntegrationTest {
     }
 
     @Test //Test history
-    public void GivenAnAccountWhenPrintingAfterMakingWithdrawalAndDepositHistoryShouldListAllTransactions(){
-        fail("Not yet implemented");
+    public void givenAnAccountWhenPrintingAfterMakingWithdrawalAndDepositHistoryShouldListAllTransactions() throws Exception {
+
+        int size1 = (accountMovementRepository.findAll()
+                .stream()
+                .filter(accountMovement -> accountMovement.getAccountNumber().equals(ACCOUNT.getAccountNumber()))
+                .collect(Collectors.toList())).size();
+        // movement 1
+
+        BigDecimal amount1 = new BigDecimal(152);
+        MovementDTO movement1 = new MovementDTO(ACCOUNT.getAccountNumber(), amount1);
+        AccountMovement accountMovement1 = accountMovementService.makeDeposit(movement1);
+
+        // movement 2
+        BigDecimal amount2 = new BigDecimal(50);
+        MovementDTO movement2 = new MovementDTO(ACCOUNT.getAccountNumber(), amount2);
+        AccountMovement accountMovement2 = accountMovementService.makeWithdrawal(movement2);
+
+        MvcResult result =restMockMvc.perform(get("/api/accounthistory/12345")
+                .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(jsonPath("$", hasSize(size1 + 2)))
+                .andReturn();
+        List<AccountMovement> list = JsonPath.read(result.getResponse().getContentAsString(), "$");
+        assertThat(list.contains(accountMovement1));
+        assertThat(list.contains(accountMovement2));
+        //fail("Not yet implemented");
     }
 
 }

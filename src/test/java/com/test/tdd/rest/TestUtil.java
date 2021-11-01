@@ -55,6 +55,10 @@ public final class TestUtil {
         return mapper.writeValueAsBytes(object);
     }
 
+    public static String convertObjectToJsonString(Object object) throws IOException {
+        return mapper.writeValueAsString(object);
+    }
+
 
     private TestUtil() {}
 }
