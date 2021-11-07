@@ -9,6 +9,8 @@ import com.test.tdd.repository.AccountStatementRepository;
 import com.test.tdd.service.AccountMovementService;
 import com.test.tdd.service.AccountStatementService;
 import com.test.tdd.service.dto.MovementDTO;
+import net.minidev.json.JSONArray;
+import net.minidev.json.parser.JSONParser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,9 +19,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.math.BigDecimal;
-
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -31,7 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class AccountMovementIntegrationTest {
 
-    private final AccountStatement ACCOUNT = new AccountStatement(12345L, "12345", new BigDecimal(3000), "Etienne Dupon");;
+    private final AccountStatement ACCOUNT = new AccountStatement(12345L, "12345", new BigDecimal(3000), "Etienne Dupon");
 
     @Autowired
     private final AccountStatementRepository accountStatementRepository = new AccountStatementRepository();
@@ -149,20 +151,32 @@ class AccountMovementIntegrationTest {
 
         BigDecimal amount1 = new BigDecimal(152);
         MovementDTO movement1 = new MovementDTO(ACCOUNT.getAccountNumber(), amount1);
-        AccountMovement accountMovement1 = accountMovementService.makeDeposit(movement1);
+        accountMovementService.makeDeposit(movement1);
 
         // movement 2
         BigDecimal amount2 = new BigDecimal(50);
         MovementDTO movement2 = new MovementDTO(ACCOUNT.getAccountNumber(), amount2);
-        AccountMovement accountMovement2 = accountMovementService.makeWithdrawal(movement2);
+        accountMovementService.makeWithdrawal(movement2);
 
-        restMockMvc.perform(get("/api/accounthistory/12345")
+        JSONParser jsonParser= new JSONParser(JSONParser.DEFAULT_PERMISSIVE_MODE);
+
+        JSONArray registeredAccountMovementsJsonArray = (JSONArray) jsonParser
+                .parse(
+                        TestUtil
+                                .convertObjectToJsonString(
+                                        accountMovementRepository.findAllMovementsByAccount(ACCOUNT.getAccountNumber()
+                                        )
+                                )
+                );
+
+        MvcResult result = restMockMvc.perform(get("/api/accounthistory/12345")
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
-                .andExpect(jsonPath("$", hasSize((int) (size1 + 2))));
-        assertThat(accountMovementRepository.findAll().contains(accountMovement1)).isTrue();
-        assertThat(accountMovementRepository.findAll().contains(accountMovement2)).isTrue();
+                .andExpect(jsonPath("$").value(
+                        registeredAccountMovementsJsonArray
+                        ))
+                .andExpect(jsonPath("$", hasSize((int) (size1 + 2)))).andReturn();
         //fail("Not yet implemented");
     }
 

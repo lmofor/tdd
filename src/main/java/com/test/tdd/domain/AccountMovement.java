@@ -1,5 +1,6 @@
 package com.test.tdd.domain;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.test.tdd.domain.enums.EOperation;
 
 import java.io.Serializable;
@@ -14,6 +15,7 @@ public class AccountMovement implements Serializable {
     private EOperation operation;
     private BigDecimal amount;
     private BigDecimal newBalance;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "UTC")
     private Instant date;
 
     public AccountMovement() {
